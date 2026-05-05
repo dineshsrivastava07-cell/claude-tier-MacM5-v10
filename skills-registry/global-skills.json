@@ -1,0 +1,315 @@
+{
+  "deep_review": {
+    "name": "Deep Review",
+    "trigger": "Any review, audit, or analysis task",
+    "description": "Long-context aware review. Read ALL files first, never comment before complete read.",
+    "steps": [
+      "Read all in-scope files",
+      "Build mental model of full system",
+      "Apply review checklist",
+      "Output structured findings with severity",
+      "Provide prioritised recommendations"
+    ],
+    "tools": [
+      "plan_deep_review",
+      "fs_multi_read",
+      "code_review_checklist"
+    ],
+    "anti_patterns": [
+      "Reviewing file-by-file without full context",
+      "Commenting on partial code view"
+    ]
+  },
+  "architecture": {
+    "name": "Architecture Creation",
+    "trigger": "System design, new component, greenfield project",
+    "description": "Requirements \u2192 ADRs \u2192 Component diagram \u2192 Data flow \u2192 Risk register",
+    "steps": [
+      "Gather requirements",
+      "Identify components and responsibilities",
+      "Define integration contracts",
+      "Document technology decisions",
+      "Create risk register",
+      "Define non-functional requirements"
+    ],
+    "tools": [
+      "plan_scope_analysis",
+      "plan_architecture",
+      "mem_store_decision"
+    ],
+    "anti_patterns": [
+      "Designing without constraints",
+      "Skipping ADRs",
+      "Starting implementation before architecture is agreed"
+    ]
+  },
+  "phase_plan": {
+    "name": "Phase Planning",
+    "trigger": "Any project or feature requiring multiple implementation steps",
+    "description": "Break work into phases with milestones, dependencies, exit criteria",
+    "steps": [
+      "Scope analysis",
+      "Identify phases",
+      "Define deliverables per phase",
+      "Assign exit criteria",
+      "Identify cross-phase dependencies"
+    ],
+    "tools": [
+      "plan_scope_analysis",
+      "plan_phases",
+      "plan_todos"
+    ],
+    "anti_patterns": [
+      "Single phase for all work",
+      "Phases without exit criteria",
+      "Missing dependency tracking between phases"
+    ]
+  },
+  "todo_plan": {
+    "name": "Step-by-Step TODO Planning",
+    "trigger": "Before starting any implementation",
+    "description": "Atomic, ordered, verifiable TODO list. Each TODO has: action, file, acceptance criterion, tier.",
+    "steps": [
+      "Read all files first",
+      "Identify smallest units of work",
+      "Assign tier to each TODO",
+      "Order by dependency",
+      "Define acceptance criterion per TODO"
+    ],
+    "tools": [
+      "plan_todos",
+      "tier_gate_classify"
+    ],
+    "anti_patterns": [
+      "TODOs without acceptance criteria",
+      "Un-ordered TODOs",
+      "TODOs that span multiple files without a plan"
+    ]
+  },
+  "coding": {
+    "name": "Standard Coding",
+    "trigger": "Single-file or simple multi-file coding task",
+    "description": "Read \u2192 Plan \u2192 Implement \u2192 Verify. Never code before reading.",
+    "steps": [
+      "Read file(s)",
+      "State what you will change and why",
+      "Implement change",
+      "Read file again to verify",
+      "Run relevant tests"
+    ],
+    "tools": [
+      "fs_read",
+      "fs_patch",
+      "code_review_checklist"
+    ],
+    "anti_patterns": [
+      "Coding from memory without reading current file",
+      "Not verifying edit was applied correctly"
+    ]
+  },
+  "complex_coding": {
+    "name": "Complex Coding",
+    "trigger": "Multi-file feature, refactor, or algorithm implementation",
+    "description": "Full protocol: scope \u2192 deps \u2192 implement in order \u2192 cross-check \u2192 qa",
+    "steps": [
+      "Scope analysis",
+      "Read ALL files",
+      "Map dependencies",
+      "Write tests first",
+      "Implement in dependency order",
+      "Cross-file integration check",
+      "QA review"
+    ],
+    "tools": [
+      "code_cross_file_deps",
+      "code_multi_file_plan",
+      "code_implement_protocol",
+      "qa_review"
+    ],
+    "anti_patterns": [
+      "Editing files in arbitrary order",
+      "Skipping dependency analysis for multi-file changes"
+    ]
+  },
+  "multi_file_edit": {
+    "name": "Multi-File Edit",
+    "trigger": "Changes spanning 2+ files",
+    "description": "Plan edit order \u2192 Read all \u2192 Edit one at a time \u2192 Verify each \u2192 Integration check",
+    "steps": [
+      "List all files in scope",
+      "Classify each file by role",
+      "Determine safe edit order",
+      "Read \u2192 Edit \u2192 Verify per file",
+      "Final cross-file consistency check"
+    ],
+    "tools": [
+      "code_multi_file_plan",
+      "fs_multi_read",
+      "code_cross_file_deps"
+    ],
+    "anti_patterns": [
+      "Editing multiple files without a plan",
+      "Not verifying each file after edit",
+      "Skipping final integration check"
+    ]
+  },
+  "e2e_integration": {
+    "name": "E2E Integration",
+    "trigger": "Wiring services together, API contracts, cross-system integration",
+    "description": "Define contracts \u2192 Implement \u2192 Verify each point \u2192 Test failure paths",
+    "steps": [
+      "List all integration points",
+      "Define request/response contracts",
+      "Implement with timeouts and error handling",
+      "Verify each integration point independently",
+      "Test full end-to-end flow",
+      "Test graceful failure of each point"
+    ],
+    "tools": [
+      "integration_verify",
+      "qa_review"
+    ],
+    "anti_patterns": [
+      "Assuming integration works without testing",
+      "Missing timeout/retry on external calls",
+      "Not testing failure paths"
+    ]
+  },
+  "qa": {
+    "name": "Detailed QA",
+    "trigger": "Before any commit, PR, or release",
+    "description": "Structured QA covering: syntax, tests, security, integration, performance",
+    "steps": [
+      "Run qa_review with appropriate qa_type",
+      "Fix all CRITICAL findings before proceeding",
+      "Fix all HIGH findings before release",
+      "Document MEDIUM and LOW as known issues"
+    ],
+    "tools": [
+      "qa_review",
+      "code_review_checklist",
+      "fix_issues_from_qa"
+    ],
+    "anti_patterns": [
+      "Skipping QA 'because tests pass'",
+      "Declaring PASS with open CRITICAL findings"
+    ]
+  },
+  "rca": {
+    "name": "Intelligent RCA",
+    "trigger": "Any error, failure, or unexpected behaviour",
+    "description": "Evidence-based root cause analysis. No hypotheses without code evidence.",
+    "steps": [
+      "Read stack trace carefully",
+      "Identify exact failure line",
+      "Trace value origins backwards",
+      "Generate hypotheses",
+      "Verify each hypothesis against actual code",
+      "State root cause with evidence",
+      "Apply minimal fix"
+    ],
+    "tools": [
+      "rca_analyze",
+      "bug_fix_protocol",
+      "mem_store_error_fix"
+    ],
+    "anti_patterns": [
+      "Fixing the symptom not the root cause",
+      "Stating root cause before reading code",
+      "Changing multiple things at once"
+    ]
+  },
+  "bug_fix": {
+    "name": "Intelligent Bug Fix",
+    "trigger": "Any bug report or unexpected behaviour",
+    "description": "Reproduce \u2192 Locate \u2192 Root cause \u2192 Minimal fix \u2192 Verify \u2192 Document",
+    "steps": [
+      "Understand reproduction steps",
+      "Locate failure in code",
+      "Identify root cause (call rca_analyze)",
+      "Write fix (minimal \u2014 one change)",
+      "Verify fix",
+      "Store in long-term memory"
+    ],
+    "tools": [
+      "bug_fix_protocol",
+      "rca_analyze",
+      "mem_store_error_fix"
+    ],
+    "anti_patterns": [
+      "Fixing without reproducing",
+      "Guessing the fix",
+      "Not documenting the fix for future reference"
+    ]
+  },
+  "implementation": {
+    "name": "Intelligent Implementation",
+    "trigger": "Any feature or system implementation task",
+    "description": "Full lifecycle: scope \u2192 architecture \u2192 plan \u2192 implement \u2192 qa \u2192 memory",
+    "steps": [
+      "Scope analysis",
+      "Architecture if new system",
+      "Phase and TODO plan",
+      "Implement per plan",
+      "QA review",
+      "Fix issues",
+      "Store decisions"
+    ],
+    "tools": [
+      "agent_implement",
+      "plan_scope_analysis",
+      "plan_todos",
+      "code_implement_protocol",
+      "qa_review"
+    ],
+    "anti_patterns": [
+      "Implementing without a plan",
+      "Skipping QA because implementation 'looks right'"
+    ]
+  },
+  "agentic": {
+    "name": "Intelligent Agentic",
+    "trigger": "Complex autonomous task requiring multiple steps and tools",
+    "description": "Goal \u2192 Decompose \u2192 Orchestrate subagents \u2192 Verify \u2192 Memory",
+    "steps": [
+      "State goal unambiguously",
+      "Decompose into atomic subtasks",
+      "Assign tier to each subtask",
+      "Orchestrate in dependency order",
+      "Verify each subagent output",
+      "QA final result",
+      "Update long-term memory"
+    ],
+    "tools": [
+      "agent_decompose",
+      "agent_spawn_subagent",
+      "agent_orchestrate",
+      "agent_implement"
+    ],
+    "anti_patterns": [
+      "Subagents expanding their scope",
+      "Not verifying subagent output before using it",
+      "Missing memory update at completion"
+    ]
+  },
+  "subagent": {
+    "name": "Intelligent Subagent",
+    "trigger": "When Claude is operating as a subagent within a larger orchestration",
+    "description": "Bounded execution: only declared tools, only declared scope, structured output only",
+    "steps": [
+      "Read and confirm scope boundaries",
+      "Execute ONLY the declared subtask",
+      "Use ONLY the declared tools",
+      "Return structured output \u2014 do not apply changes autonomously",
+      "Escalate if scope needs to expand"
+    ],
+    "tools": [
+      "agent_spawn_subagent"
+    ],
+    "anti_patterns": [
+      "Expanding scope beyond subtask",
+      "Using tools not in declared allowed list",
+      "Self-applying results without reporting back"
+    ]
+  }
+}

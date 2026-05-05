@@ -1,0 +1,4 @@
+# DSR AI-Lab v10.1 — tier-enforcer-mcp dependencies
+fastmcp>=0.4.0
+# Standard library only otherwise (urllib, sqlite3, json, threading, etc.)
+# No requests, no httpx, no LiteLLM, no LangGraph at this layer
