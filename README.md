@@ -26,6 +26,105 @@ A **production-grade, local-first AI coding system** running on MacBook Pro M5 (
 - **18 Slash Commands** — full enterprise pipeline from `/scope` to `/release`, orchestrated by `/enterprise`
 - **Enterprise Pipeline** — 10-phase delivery lifecycle with mandatory go/no-go gates at every phase
 - **OAuth-Only Auth** — no `ANTHROPIC_API_KEY` anywhere; Claude authenticates via macOS Keychain
+- **6-Layer Harness** — Stage 3 Harness Engineering: structured handoff schema, retry budget, pre-task assertions, intra-session scratchpad
+
+---
+
+## Harness Engineering — Stage 3
+
+This system operates at **Stage 3: Harness Engineering** — not just prompt tuning or context management, but full execution scaffolding that prevents drift and catches failures across long action chains.
+
+| Stage | Name | Goal | Limitation |
+|-------|------|------|------------|
+| Stage 1 | Prompt Engineering | Did the model understand me? | Hits ceiling outside model weights |
+| Stage 2 | Context Engineering | Does the model have the facts? | Perfect context can't prevent execution drift |
+| **Stage 3** | **Harness Engineering** | Can the model sustain correct action? | — Scaffolding prevents drift; catches and recovers from failures |
+
+> **Note on RAG:** Context Engineering (Stage 2) in this system uses explicit `Read`/`Grep`/`Glob` + `dsr-memory` structured lookups — **not vector search**. There is no document corpus. RAG is not applicable.
+
+### 6-Layer Stack
+
+```
+User Request
+     │
+     ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ L1: Information Boundaries (Cognitive Scope)                         │
+│     Brain reads freely via Read/Grep/Glob + dsr-memory               │
+│     Executor sees ONLY the structured handoff package                │
+│     [WHAT · WHY · INTERFACE · DECISIONS · CONVENTIONS · ASSERTIONS]  │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ L2: Tool System (Actuation)                                          │
+│     Edit/Write/MultiEdit → intercept.py hard gate → Gemma executor   │
+│     Bash → bash_safety.py filter                                     │
+│     12 MCP servers (dsr-agent, dsr-planner, dsr-memory, ...)         │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ L3: Execution Orchestration (Planning & Routing)                     │
+│     tier-enforcer: score 1–10 → T1 / T2 / T3 / T-CLOUD             │
+│     dsr-planner: decompose into verifiable sub-steps                 │
+│     dsr-agent: multi-phase subagent orchestration                    │
+│     14 skills protocols: /enterprise /scope /arch /plan ...          │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ L4: Memory & State (Continuity)                                      │
+│     Session start: mem_session_snapshot() — top-20 relevant memories │
+│     During task: mem_short_store() — intra-session scratchpad        │
+│     After task: mem_store_decision() / mem_store_error_fix()         │
+│     Cross-session: SQLite FTS5 (mem_long_search)                     │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ L5: Evaluation & Observability (Self-Awareness)                      │
+│     §7 verification: Read modified files → run tests                 │
+│     dsr-integrator.integration_verify() — E2E checks                │
+│     audit.db: every tier routing decision logged                     │
+│     executed_banner.py: PostToolUse ✓ tier · latency · fallbacks     │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ L6: Constraints, Validation & Recovery (Resilience)                  │
+│     §8 Forbidden list: immutable hard rules                          │
+│     Retry budget: attempt 1→2→3 at tier → T-CLOUD → surface to user │
+│     Pre-task assertions (Step 0): written before work, checked after │
+│     Output validation: ASSERTIONS field in every handoff             │
+└──────────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+                        Result to User
+```
+
+### Workflow Protocol (v10.1)
+
+| Step | Action |
+|------|--------|
+| **Step 0** | **Define success criteria FIRST** — write assertions before touching any file |
+| Step 1 | Understand — read files, search memory (`mem_long_search`) |
+| Step 2 | Plan — `dsr-planner` for complex tasks, decompose into verifiable sub-steps |
+| Step 3 | Execute via gate — `Edit`/`Write` with mandatory handoff schema |
+| Step 4 | Verify — read modified files, run tests, check Step 0 assertions |
+| Step 5 | Iterate — max 3 retries → T-CLOUD → surface to user |
+| Step 6 | Store — `mem_store_decision()` / `mem_store_error_fix()` |
+
+### Mandatory Handoff Schema
+
+Every executor call must include all 7 fields:
+
+```
+WHAT:        [the specific change to make — one sentence]
+WHY:         [reason or constraint driving this change]
+INTERFACE:   [function signatures, types, class names the output must satisfy]
+DECISIONS:   [decisions from earlier in this session the executor must honor]
+CONVENTIONS: [naming, style, patterns to match from existing code]
+ASSERTIONS:  [conditions that must be true in the output — verified in §7]
+RETRY:       [N/3 — increment on each re-issue of the same edit]
+```
+
+Omitting any field is a packaging failure. The stateless executor will guess — and guesses drift.
 
 ---
 

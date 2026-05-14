@@ -44,6 +44,122 @@
 
 ---
 
+## 6-Layer Harness Stack
+
+This system is designed at **Stage 3: Harness Engineering**. A mature harness is not a single script — it is a layered architecture designed to bound cognition, empower action, orchestrate workflows, and catch inevitable failures.
+
+```
+User Request
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  L1: Information Boundaries (Cognitive Scope)                           │
+│                                                                         │
+│  Brain reads freely: Read / Grep / Glob → passthrough                  │
+│  Memory retrieval: dsr-memory.mem_long_search() → structured lookups   │
+│                                                                         │
+│  Executor sees ONLY what Brain packages in the handoff:                 │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  WHAT:        [the specific change — one sentence]              │   │
+│  │  WHY:         [reason/constraint driving this change]           │   │
+│  │  INTERFACE:   [signatures, types, class names to satisfy]       │   │
+│  │  DECISIONS:   [prior decisions this executor must honor]        │   │
+│  │  CONVENTIONS: [naming, style, patterns from existing code]      │   │
+│  │  ASSERTIONS:  [conditions that must be true — verified in L5]   │   │
+│  │  RETRY:       [N/3 — increments on each re-issue]              │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  No RAG. Context = explicit file reads + structured memory retrieval.  │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  L2: Tool System (Actuation)                                            │
+│                                                                         │
+│  Edit / Write / MultiEdit ──→ intercept.py (PreToolUse hook)            │
+│                               Hard gate: classifies + routes to Gemma  │
+│                                                                         │
+│  Bash ─────────────────────→ bash_safety.py (PreToolUse hook)           │
+│                               Blocks file-redirect bypass attempts      │
+│                                                                         │
+│  12 MCP servers ───────────→ passthrough                               │
+│  (dsr-agent / dsr-planner / dsr-coder / dsr-integrator / dsr-memory /  │
+│   dsr-skills / dsr-filesystem / dsr-git / tier-enforcer /              │
+│   dsr-executor / clickhouse-sql / clickhouse-nl)                       │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  L3: Execution Orchestration (Planning & Routing)                       │
+│                                                                         │
+│  tier-enforcer.classify(task) → score 1–10                             │
+│    Score 1–3  → T1: gemma4:e4b    (load on demand)                     │
+│    Score 4–6  → T2: gemma4:26b    (always warm)                        │
+│    Score 7–8  → T3: gemma4:26b + <|think|>  (zero extra RAM)           │
+│    Score 9–10 → T-CLOUD: qwen3-coder:480b → fallback gemma4:31b-cloud  │
+│                                                                         │
+│  dsr-planner → decompose into verifiable sub-steps                     │
+│  dsr-agent   → multi-phase subagent orchestration                      │
+│  14 skills   → /enterprise /scope /arch /plan /implement ...           │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  L4: Memory & State (Continuity)                                        │
+│                                                                         │
+│  Session start → mem_session_snapshot() → top-20 relevant memories     │
+│  During task  → mem_short_store()       → intra-task scratchpad        │
+│  After task   → mem_store_decision()    → persist architectural choices │
+│             or → mem_store_error_fix()  → persist bug fix + RCA        │
+│  Cross-session → SQLite FTS5 at ~/.dsr-ai-lab/memory.db                │
+│                  mem_long_search(keywords) — institutional knowledge    │
+│                                                                         │
+│  Memory compounds across sessions. System improves with use.           │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  L5: Evaluation & Observability (Self-Awareness)                        │
+│                                                                         │
+│  §7 verification loop (mandatory after every multi-file change):       │
+│    1. Read each modified file → confirm executor output is correct      │
+│    2. Run tests via Bash                                                │
+│    3. Check all ASSERTIONS from the L1 handoff package                 │
+│                                                                         │
+│  dsr-integrator.integration_verify() → E2E checks                     │
+│  audit.db → every tier routing decision logged (SQLite)                │
+│  executed_banner.py → PostToolUse: ✓ tier · latency · fallbacks        │
+│  tier_health() + audit_summary() → live system status (no caching)     │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  L6: Constraints, Validation & Recovery (Resilience)                    │
+│                                                                         │
+│  §8 Forbidden list → immutable hard rules enforced at hook level        │
+│                                                                         │
+│  Retry budget:                                                          │
+│    Attempt 1 ──→ Attempt 2 ──→ Attempt 3  (same tier)                 │
+│         │                           │                                  │
+│    ASSERTIONS fail           ASSERTIONS fail                            │
+│         └──────────────────────────→ Escalate to T-CLOUD               │
+│                                           │                            │
+│                                      Still failing?                    │
+│                                           │                            │
+│                                           ▼                            │
+│                                  Surface to user with full context     │
+│                                  Do NOT loop indefinitely              │
+│                                                                         │
+│  Pre-task assertions (Step 0): defined before work starts,             │
+│  verified at Step 4. Failed assertion = re-plan, not re-run.           │
+└─────────────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+                        Result to User
+```
+
+---
+
 ## Hard Gate — Detailed Flow
 
 Every file write passes through this gate. No exceptions.
