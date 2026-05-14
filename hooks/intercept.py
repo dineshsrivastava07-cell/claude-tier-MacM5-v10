@@ -377,7 +377,23 @@ def write_audit_row(db_path: Path, **fields) -> None:
 # Hook output helpers
 # ─────────────────────────────────────────────────────────────────────────
 
-def emit_allow_with_rewrite(updated_input: dict, reason: str) -> None:
+def render_assigned_banner(tier: str, model: str, tool_name: str, file_path: str, score: int, thinking: bool) -> str:
+    """Render a Task Assigned banner matching the executed_banner style."""
+    fname = os.path.basename(file_path) if file_path else "?"
+    tier_label = f"{tier} · {model}"
+    if thinking:
+        tier_label += " [thinking]"
+    lines = [
+        "┌─ Task Assigned ─────────────────────────────────────────────────────┐",
+        f"│  →  Tool      {tool_name:<18} File: {fname:<22}│",
+        f"│     Tier      {tier_label:<54}│",
+        f"│     Score     {str(score) + '/10':<55}│",
+        "└─────────────────────────────────────────────────────────────────────┘",
+    ]
+    return "\n".join(l[:72] for l in lines)
+
+
+def emit_allow_with_rewrite(updated_input: dict, reason: str, banner: str = "") -> None:
     output = {
         "continue": True,
         "hookSpecificOutput": {
@@ -387,6 +403,14 @@ def emit_allow_with_rewrite(updated_input: dict, reason: str) -> None:
             "updatedInput": updated_input,
         },
     }
+    if banner:
+        output["hookSpecificOutput"]["additionalContext"] = f"\n```\n{banner}\n```\n"
+        try:
+            with open("/dev/tty", "w") as _tty:
+                _tty.write("\n" + banner + "\n")
+                _tty.flush()
+        except (OSError, IOError):
+            pass
     sys.stdout.write(json.dumps(output))
     sys.stdout.flush()
 
@@ -496,7 +520,8 @@ def main() -> int:
             f"score={score}/10 | {latency_ms}ms | {fname}"
         )
 
-        emit_allow_with_rewrite(updated_input, reason)
+        banner = render_assigned_banner(tier, model, tool_name, file_path, score, thinking)
+        emit_allow_with_rewrite(updated_input, reason, banner)
     else:
         # Routing failed across all attempts → passthrough so Brain can
         # decide what to do (often: notify user, retry manually, or proceed

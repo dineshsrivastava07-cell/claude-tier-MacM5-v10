@@ -8,6 +8,34 @@
 
 ---
 
+## Changelog
+
+### 2026-05-14 — System Audit + Harness Engineering Fixes
+
+**Harness Engineering framework added (6-layer stack)**
+- `CLAUDE.md`: project-level constitution rewritten — executor updated qwen→Gemma 4, CLI vs Desktop routing table, Step 0 workflow (define success criteria before touching files), 6-layer harness reference
+- `README.md` / `ARCHITECTURE.md`: full 6-layer stack diagrams, mandatory handoff schema (WHAT/WHY/INTERFACE/DECISIONS/CONVENTIONS/ASSERTIONS/RETRY), Stage 3 paradigm explanation
+
+**`hooks/intercept.py` — Task Assigned banner added**
+- New `render_assigned_banner()` function: displays tier, model, score before each gated edit
+- Updated `emit_allow_with_rewrite()` to emit banner via `additionalContext` and `/dev/tty`
+- The "Task Assigned" banners visible in Claude Code output are now in sync with the repo
+
+**Memory system fixed**
+- Long-term SQLite memory (`~/.dsr-ai-lab/memory/long_term.db`) was empty — now seeded with 8 knowledge entries (user profile, system architecture, MCP servers, commands, git repo, executor rules, etc.)
+- `DSR_AI_LAB_MEMORY_DB` env var corrected: `memory.db` → `memory/long_term.db`
+- Stale user_profile and MCP servers reference files updated (qwen→Gemma 4, old server list replaced with actual 12 servers)
+- Stale `feedback_bypass.md` (never-requested gate bypass rule) deleted from memory
+
+**Stale hook files removed**
+- Deleted `~/.claude/hooks/startup_warm_qwen.sh` — warmed wrong model (qwen2.5-coder:14b). T2 keep-alive + `session_start()` handle warmup correctly.
+- Deleted `~/.claude/hooks/pre_tool_block.py` — dead v10.0 logic that redirected to `mcp__qwen_executor__*`. Active v10.1 equivalent is `hooks/intercept.py`.
+
+**T-CLOUD clarification**
+- `qwen3-coder:480b-cloud` and `gemma4:31b-cloud` are Ollama Cloud models — accessed via API, NOT pulled locally. `session_start()` "not pulled" warning is a false positive for cloud models.
+
+---
+
 ## What Is This?
 
 A **production-grade, local-first AI coding system** running on MacBook Pro M5 (32 GB unified memory). It routes every task to the right AI model based on complexity — automatically — while enforcing a hard gate that prevents Claude (the Brain) from directly writing code to disk.
